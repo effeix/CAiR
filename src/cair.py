@@ -1,14 +1,14 @@
 import gym
+from myenv import MyEnv
 
-env = gym.make('CarRacing-v0')
+env = gym.make("MyEnv-v0")
 
-for i_episode in range(20):
-    observation = env.reset()
-    for t in range(200):
+for i_episode in range(10):
+    obs = env.reset()
+    for t in range(1):
         env.render()
-        print(observation)
         action = env.action_space.sample()
-        observation, reward, done, info = env.step(action)
+        obs, reward, done, info = env.step(action)
         if done:
             print("Episode finished after {} timesteps".format(t+1))
             break
