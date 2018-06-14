@@ -1,9 +1,13 @@
-from random import randint
+from random import choice
 import numpy as np
-import matplotlib.pyplot as plt
 
 
 class Game(object):
+
+    STATE_NEUTRAL = 0
+    STATE_COLLECTED = 1
+    STATE_WON = 2
+    STATE_LOST = 3
 
     bd_colors = {
         "BLACK": 0,
@@ -19,21 +23,24 @@ class Game(object):
         "BLUE": np.array([0, 0, 255])
     }
 
-    def __init__(self, size=8, n_green=3, n_red=3):
+    def __init__(self, size=16, n_green=3, n_red=3):
 
         self.size = size
         self.orig_n_green = n_green
         self.orig_n_red = n_red
-        self.reset()
 
     def reset(self):
+        self.__is_first_display = True
+
         self.color_hit_after_move = "BLACK"
-        self.last_player_pos = [0, 0]
+
         self.n_green = self.orig_n_green
         self.n_red = self.orig_n_red
+
+        self.last_player_pos = [0, 0]
         self.player_pos = [0, 0]
-        self.game_state = "neutral"
-        self.tiles_info = {}
+
+        self.game_state = Game.STATE_NEUTRAL
 
         self.bd = np.zeros((self.size, self.size), dtype=np.uint8)
         self.im = np.zeros((self.size, self.size, 3), dtype=np.uint8)
@@ -102,86 +109,47 @@ class Game(object):
 
         return moved
 
-    def __update_game(self):
-        self.color_hit_after_move = self.__get_color(self.player_pos)
-
-        self.__set_color(self.last_player_pos, "BLACK")
-        self.__set_color(self.player_pos, "BLUE")
-
-        if self.color_hit_after_move == 0:
-            self.game_state = "neutral"
-
-        elif self.color_hit_after_move == 1:
-            self.game_state = "lost"
-
-        elif self.color_hit_after_move == 2:
-            self.game_state = "collected"
-
-            self.n_green -= 1
-
-            print("n_green", self.n_green)
-            if self.n_green == 0:
-                self.game_state = "won"
-
     def get_game_state(self):
         return self.game_state
 
     def get_image(self):
         return self.im
 
-    def display(self):
-        plt.imshow(self.im)
-        plt.show()
+    def get_board(self):
+        return self.bd
 
     def __generate_random_tiles(self):
 
-        print("Generating...")
+        avail_pos = [
+            pos
+            for pos in np.ndindex(self.size, self.size)
+            if pos != (0, 0)
+        ]
 
-        # Available positions for tile placement
-        # Third element represents color:
-        #   0 (black), 1 (red), 2 (green), 3 (blue)
-        avail_pos = []
+        for idx in range(-self.n_green, self.n_red):
+            color = "GREEN" if idx < 0 else "RED"
 
-        for r in range(self.size):
-            for c in range(self.size):
-                avail_pos.append([r, c])
+            pos = avail_pos.pop(avail_pos.index(choice(avail_pos)))
 
-        avail_pos.remove([0, 0])
+            self.__set_color(pos, color)
 
-        # Generate green tiles
-        for _ in range(self.n_green):
-            while True:
-                pos = [randint(0, self.size - 1), randint(0, self.size - 1)]
+    def __update_game(self):
+        self.color_hit_after_move = self.__get_color(self.player_pos, typ="im")
+        print("Color hit:", self.color_hit_after_move)
 
-                if pos in avail_pos:
-                    break
+        if self.color_hit_after_move == 0 or self.color_hit_after_move == 3:
+            self.game_state = Game.STATE_NEUTRAL
 
-                pos = [randint(0, self.size - 1), randint(0, self.size - 1)]
+        elif self.color_hit_after_move == 1:
+            self.game_state = Game.STATE_LOST
 
-            self.__set_color(pos, "GREEN")
-            avail_pos.remove(pos)
+        elif self.color_hit_after_move == 2:
+            self.game_state = Game.STATE_COLLECTED
 
-        # Red tiles cannot be next to player on start,
-        # so block right and bottom if they are available
-        try:
-            avail_pos.remove([0, 1])
-        except ValueError:
-            pass
+            self.n_green -= 1
 
-        try:
-            avail_pos.remove([1, 0])
-        except ValueError:
-            pass
+            if self.n_green == 0:
+                self.game_state = Game.STATE_WON
 
-        # Generate red tiles
-        for _ in range(self.n_red):
-            while True:
-                pos = [randint(0, self.size - 1), randint(0, self.size - 1)]
-
-                if pos in avail_pos:
-                    break
-
-                pos = [randint(0, self.size - 1), randint(0, self.size - 1)]
-
-            self.__set_color(pos, "RED")
-            avail_pos.remove(pos)
+        self.__set_color(self.last_player_pos, "BLACK")
+        self.__set_color(self.player_pos, "BLUE")
